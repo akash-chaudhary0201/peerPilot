@@ -1,0 +1,184 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Student Table matching all profile and signup fields
+model Student {
+  id                 String     @id @default(cuid())
+  idNumber           String     @unique // e.g. STU-10001
+  name               String
+  email              String     @unique
+  passwordHash       String
+  phone              String?
+  githubUrl          String?
+  linkedinUrl        String?
+  portfolioUrl       String?
+  college            String?
+  degree             String?
+  gradYear           String?
+  gpa                String?
+  targetRole         String?
+  targetCompanies    String?
+  preferredLocation  String?
+  searchStatus       String?
+  yoe                String?
+  languages          String?
+  frameworks         String?
+  
+  // Projects
+  project1Title      String?
+  project1Desc       String?
+  project1Tech       String?
+  project2Title      String?
+  project2Desc       String?
+  project2Tech       String?
+  projects           Json?      // JSON array of projects: { title, desc, tech }[]
+  emailVerified      Boolean    @default(false)
+  verificationToken  String?
+  
+  // Relations
+  bookings           Booking[]
+  goals              Goal[]
+  activities         Activity[]
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+}
+
+// Mentor Table matching all onboarding and profile fields
+model Mentor {
+  id                String     @id @default(cuid())
+  idNumber          String     @unique // e.g. MEN-10001
+  approved          Boolean    @default(false)
+  name              String
+  email             String     @unique
+  passwordHash      String
+  phone             String?
+  role              String
+  company           String
+  specialty         String     // e.g. "Frontend", "Backend", "System Design", "HR & Behavioral"
+  bio               String
+  rating            Float      @default(5.0)
+  completedSessions Int        @default(0)
+  experience        String     // e.g. "7+ Years"
+  githubUrl         String?
+  linkedinUrl       String?
+  languages         String?
+  hobbies           String?
+  
+  // PostgreSQL Native arrays
+  skills            String[]
+  availableDays     String[]
+  availableSlots    String[]
+  blockedDates      String[]
+  imageUrl          String?
+  
+  // Relations
+  bookings          Booking[]
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+}
+
+// Booking Table representing recent mentorship sessions & requests
+model Booking {
+  id              String    @id @default(cuid())
+  studentId       String
+  student         Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  mentorId        String
+  mentor          Mentor    @relation(fields: [mentorId], references: [id], onDelete: Cascade)
+  sessionType     String    // e.g. "DSA Mock Interview", "System Design Mock"
+  date            String    // Format "YYYY-MM-DD"
+  timeSlot        String    // e.g. "2:00 PM"
+  status          String    @default("Pending") // "Pending" | "Approved" | "Completed" | "Rejected"
+  notes           String?
+  priceTier       String?   // e.g. "Starter", "Premium", "Career Accelerator"
+  pricePaid       Int?      // e.g. 299, 499, 999
+  paymentDate     String?   
+  transactionId   String?   
+  paymentVerified Boolean   @default(false)
+  
+  pricingPlanId   String?
+  pricingPlan     PricingPlan? @relation(fields: [pricingPlanId], references: [id], onDelete: SetNull)
+
+  feedback        Feedback?
+  mentorFeedback  MentorFeedback?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+// Feedback Table representing mock evaluations and roadmaps
+model Feedback {
+  id                 String   @id @default(cuid())
+  bookingId          String   @unique
+  booking            Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  dsaScore           String   // e.g. "A", "B+", "N/A"
+  systemDesignScore  String?  // e.g. "A", "N/A"
+  communicationScore String
+  comments           String
+  submittedAt        DateTime @default(now())
+}
+
+// Student feedback / rating about the mentor
+model MentorFeedback {
+  id        String   @id @default(cuid())
+  bookingId String   @unique
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  rating    Int      // 1 to 5 star rating
+  comments  String?  // Optional text comments
+  createdAt DateTime @default(now())
+}
+
+// Goal Table representing student progress checklist
+model Goal {
+  id         String   @id @default(cuid())
+  text       String
+  completed  Boolean  @default(false)
+  studentId  String
+  student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+}
+
+// Activity Table representing audit log files/events
+model Activity {
+  id        String   @id @default(cuid())
+  text      String
+  time      String   // e.g. "Just Now", "2 hours ago"
+  type      String   // e.g. "booking", "resume", "profile", "system"
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+// Admin Table for portal access
+model Admin {
+  id                 String   @id @default(cuid())
+  email              String   @unique
+  passwordHash       String
+  name               String
+  roleName           String   @default("Admin")
+  canAccessStudents  Boolean  @default(true)
+  canAccessMentors   Boolean  @default(true)
+  canVerifyPayments  Boolean  @default(true)
+  canManagePricing   Boolean  @default(true)
+  canManageAdmins    Boolean  @default(true)
+  createdAt          DateTime @default(now())
+}
+
+// PricingPlan Table for dynamic admin pricing
+model PricingPlan {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  price       Int
+  duration    Int       // in minutes
+  subtitle    String?
+  tag         String?   // e.g. "Best Seller"
+  perfectFor  String[]  // tags, e.g. ["Freshers"]
+  features    String[]  // benefits, e.g. ["Resume review"]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  bookings    Booking[]
+}
