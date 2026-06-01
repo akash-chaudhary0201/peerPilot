@@ -31,6 +31,7 @@ export interface Booking {
   paymentDate?: string;
   transactionId?: string;
   paymentVerified?: boolean;
+  meetingLink?: string;
 }
 
 export const initialBookings: Booking[] = [

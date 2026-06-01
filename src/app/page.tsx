@@ -267,7 +267,7 @@ export default function Home() {
                 <div className="relative rounded-[2rem] overflow-hidden aspect-[4/3] w-full bg-slate-900">
                   <img
                     src="/mentorship_session_clean.png"
-                    alt="PeerPilott 1:1 Mock Interview Call Session"
+                    alt="PeerPilot 1:1 Mock Interview Call Session"
                     className="object-cover w-full h-full transform group-hover:scale-103 transition-transform duration-700 ease-out"
                   />
                   {/* Subtle Dark Gradient Overlay */}

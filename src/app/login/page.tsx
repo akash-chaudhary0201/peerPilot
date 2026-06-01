@@ -974,7 +974,7 @@ function LoginForm() {
                 <Briefcase className="h-5 w-5" />
               </div>
               <h2 className="text-2xl font-black text-slate-900 tracking-tight">Apply Mentor Onboarding</h2>
-              <p className="text-xs text-slate-500 leading-normal">Onboard as a PeerPilott Evaluator. Seed specialties to appear in the booking directory.</p>
+              <p className="text-xs text-slate-500 leading-normal">Onboard as a PeerPilot Evaluator. Seed specialties to appear in the booking directory.</p>
             </div>
 
             {error && (

@@ -35,7 +35,7 @@ export async function POST(request: Request) {
       // Send the OTP via email
       await sendEmail({
         to: student.email,
-        subject: "PeerPilott - Your Verification OTP",
+        subject: "PeerPilot - Your Verification OTP",
         html: `
           <div style="font-family: sans-serif; max-width: 550px; margin: 0 auto; padding: 25px; border: 1px solid #e2e8f0; border-radius: 16px;">
             <h2 style="color: #4f46e5; margin-top: 0; margin-bottom: 15px;">Email Verification OTP</h2>
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
             </p>
             <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
             <p style="color: #94a3b8; font-size: 10px; text-align: center;">
-              This code was requested for email verification on PeerPilott.
+              This code was requested for email verification on PeerPilot.
             </p>
           </div>
         `,

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { mentors, Mentor } from "@/data/mentors";
 import { initialBookings, Booking, Feedback } from "@/data/bookings";
+import ThemePicker from "@/components/ThemePicker";
 import {
   LayoutDashboard,
   Search,
@@ -53,6 +54,11 @@ export default function StudentPortal() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'find-mentor' | 'history' | 'profile'>('dashboard');
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [localMentors, setLocalMentors] = useState<Mentor[]>([]);
+  const [isLoadingDashboard, setIsLoadingDashboard] = useState(true);
+  const [isLoadingMentors, setIsLoadingMentors] = useState(false);
+  const [isBookingSubmitting, setIsBookingSubmitting] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isAddingGoal, setIsAddingGoal] = useState(false);
   
   // --- REDESIGNED INTERACTIVE BOOKING MODAL STATES ---
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
@@ -216,7 +222,11 @@ export default function StudentPortal() {
     ] as any
   });
 
-  const fetchDashboardData = async (email: string) => {
+  const fetchDashboardData = async (email: string, isInitial = false) => {
+    if (isInitial) {
+      setIsLoadingDashboard(true);
+    }
+    setIsLoadingMentors(true);
     try {
       const headers = { "x-user-email": email };
 
@@ -281,6 +291,9 @@ export default function StudentPortal() {
       }
     } catch (error) {
       console.error("Error loading dashboard data:", error);
+    } finally {
+      setIsLoadingDashboard(false);
+      setIsLoadingMentors(false);
     }
   };
 
@@ -328,7 +341,7 @@ export default function StudentPortal() {
         return;
       }
       setSession(parsedSession);
-      fetchDashboardData(parsedSession.email);
+      fetchDashboardData(parsedSession.email, true);
     } catch (e) {
       router.push("/login");
       return;
@@ -348,6 +361,7 @@ export default function StudentPortal() {
       return;
     }
 
+    setIsBookingSubmitting(true);
     try {
       const res = await fetch("/api/student/bookings", {
         method: "POST",
@@ -369,6 +383,7 @@ export default function StudentPortal() {
       if (!res.ok) {
         const data = await res.json();
         alert(data.error || "Booking failed.");
+        setIsBookingSubmitting(false);
         return;
       }
 
@@ -392,6 +407,8 @@ export default function StudentPortal() {
     } catch (error) {
       console.error(error);
       alert("An error occurred during booking.");
+    } finally {
+      setIsBookingSubmitting(false);
     }
   };
 
@@ -670,6 +687,7 @@ export default function StudentPortal() {
     e.preventDefault();
     if (!session) return;
 
+    setIsSavingProfile(true);
     try {
       const projectsArray = (studentProfile as any).projects || [];
       const p1 = projectsArray[0] || {};
@@ -697,6 +715,7 @@ export default function StudentPortal() {
       if (!res.ok) {
         const data = await res.json();
         alert(data.error || "Failed to save profile.");
+        setIsSavingProfile(false);
         return;
       }
 
@@ -705,6 +724,8 @@ export default function StudentPortal() {
       setTimeout(() => setSuccessToast(""), 4000);
     } catch (error) {
       console.error(error);
+    } finally {
+      setIsSavingProfile(false);
     }
   };
 
@@ -713,6 +734,7 @@ export default function StudentPortal() {
     e.preventDefault();
     if (!newGoalText.trim() || !session) return;
 
+    setIsAddingGoal(true);
     try {
       const res = await fetch("/api/student/goals", {
         method: "POST",
@@ -726,6 +748,7 @@ export default function StudentPortal() {
       if (!res.ok) {
         const data = await res.json();
         alert(data.error || "Failed to add goal.");
+        setIsAddingGoal(false);
         return;
       }
 
@@ -733,6 +756,8 @@ export default function StudentPortal() {
       await fetchDashboardData(session.email);
     } catch (error) {
       console.error(error);
+    } finally {
+      setIsAddingGoal(false);
     }
   };
 
@@ -1038,6 +1063,15 @@ export default function StudentPortal() {
     setTimeout(() => setSuccessToast(""), 4000);
   };
 
+  if (!session || isLoadingDashboard) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center gap-4 font-sans">
+        <div className="h-12 w-12 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
+        <p className="text-slate-400 text-xs font-semibold tracking-wider uppercase">Loading Workspace Coordinates...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
       {/* Toast Notification */}
@@ -1058,7 +1092,7 @@ export default function StudentPortal() {
                 <GraduationCap className="h-5 w-5" />
               </div>
               <span className="text-lg font-bold text-slate-900">
-                PeerPilott <span className="text-indigo-600">Portal</span>
+                PeerPilot <span className="text-indigo-600">Portal</span>
               </span>
             </div>
 
@@ -1483,9 +1517,14 @@ export default function StudentPortal() {
                       />
                       <button
                         type="submit"
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-lg"
+                        disabled={isAddingGoal}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-lg disabled:opacity-50 inline-flex items-center justify-center min-w-[32px] min-h-[32px]"
                       >
-                        <Plus className="h-4 w-4" />
+                        {isAddingGoal ? (
+                          <span className="animate-spin h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full shrink-0"></span>
+                        ) : (
+                          <Plus className="h-4 w-4" />
+                        )}
                       </button>
                     </form>
 
@@ -1642,7 +1681,19 @@ export default function StudentPortal() {
               </div>
 
               {/* Mentors Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {isLoadingMentors ? (
+                <div className="col-span-full flex flex-col items-center justify-center py-24 bg-white rounded-3xl border border-slate-100 shadow-sm animate-in fade-in duration-200">
+                  <div className="h-10 w-10 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div>
+                  <p className="text-slate-400 text-xs font-bold mt-4">Retrieving Active Mentors Lobby...</p>
+                </div>
+              ) : sortedMentors.length === 0 ? (
+                <div className="col-span-full flex flex-col items-center justify-center py-24 bg-white rounded-3xl border border-slate-100 shadow-sm animate-in fade-in duration-200">
+                  <Search className="h-10 w-10 text-slate-300 mb-3" />
+                  <p className="text-slate-800 text-sm font-bold">No Matchable Mentors Found</p>
+                  <p className="text-slate-400 text-xs mt-1">Adjust search parameters or skill tag filters.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {sortedMentors.map((mentor) => (
                   <div
                     key={mentor.id}
@@ -1746,6 +1797,7 @@ export default function StudentPortal() {
                   </div>
                 ))}
               </div>
+              )}
             </div>
           )}
 
@@ -1920,13 +1972,13 @@ export default function StudentPortal() {
                             {/* Live blinking call indicator */}
                             <span className="flex items-center gap-1.5 text-[9px] font-bold text-indigo-600 uppercase tracking-wide">
                               <span className="h-2 w-2 bg-indigo-600 rounded-full animate-ping shrink-0"></span>
-                              Mock Room Open
+                              Call Room Ready
                             </span>
                             <button
-                              onClick={() => alert("Launching mock call simulator... Joining room details...")}
-                              className="inline-flex items-center gap-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black rounded-xl transition-all shadow-md shadow-indigo-100"
+                              onClick={() => router.push(`/session/${booking.id}`)}
+                              className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black rounded-xl transition-all shadow-md shadow-indigo-100 cursor-pointer"
                             >
-                              <Video className="h-3.5 w-3.5" /> Join call room
+                              <Video className="h-3.5 w-3.5" /> Join Call Room
                             </button>
                           </>
                         ) : booking.status === "Completed" ? (
@@ -2337,9 +2389,17 @@ export default function StudentPortal() {
                 <div className="flex gap-4">
                   <button
                     type="submit"
-                    className="flex-grow inline-flex items-center justify-center gap-2 px-6 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-2xl text-xs transition-colors shadow-md shadow-indigo-100"
+                    disabled={isSavingProfile}
+                    className="flex-grow inline-flex items-center justify-center gap-2 px-6 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-2xl text-xs transition-colors shadow-md shadow-indigo-100 disabled:opacity-55 disabled:cursor-not-allowed"
                   >
-                    Save Professional Dossier Changes
+                    {isSavingProfile ? (
+                      <>
+                        <span className="animate-spin h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full shrink-0"></span>
+                        Saving Dossier...
+                      </>
+                    ) : (
+                      "Save Professional Dossier Changes"
+                    )}
                   </button>
                 </div>
               </form>
@@ -2622,10 +2682,18 @@ export default function StudentPortal() {
               ) : (
                 <button
                   type="button"
+                  disabled={isBookingSubmitting}
                   onClick={handleConfirmBooking}
-                  className="inline-flex items-center gap-1 px-6 py-2.5 bg-emerald-600 text-white font-bold rounded-xl text-xs hover:bg-emerald-700 shadow-md shadow-emerald-100 transition-all"
+                  className="inline-flex items-center justify-center gap-1.5 px-6 py-2.5 bg-emerald-600 text-white font-bold rounded-xl text-xs hover:bg-emerald-700 shadow-md shadow-emerald-100 transition-all disabled:opacity-50"
                 >
-                  Confirm & Request Call
+                  {isBookingSubmitting ? (
+                    <>
+                      <span className="animate-spin h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full shrink-0"></span>
+                      Requesting Call...
+                    </>
+                  ) : (
+                    "Confirm & Request Call"
+                  )}
                 </button>
               )}
             </div>
@@ -2709,7 +2777,14 @@ export default function StudentPortal() {
                 onClick={handleSubmittingRating}
                 className="inline-flex items-center justify-center gap-1.5 px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-extrabold shadow-md shadow-amber-100 transition-all cursor-pointer disabled:opacity-50"
               >
-                {isSubmittingRating ? "Submitting..." : "Submit Review"}
+                {isSubmittingRating ? (
+                  <>
+                    <span className="animate-spin h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full shrink-0"></span>
+                    Submitting...
+                  </>
+                ) : (
+                  "Submit Review"
+                )}
               </button>
             </div>
           </div>
@@ -3112,13 +3187,21 @@ export default function StudentPortal() {
                   disabled={paymentSubmitting}
                   className="inline-flex items-center justify-center gap-1.5 px-6 py-2.5 bg-indigo-650 hover:bg-indigo-700 text-white rounded-xl text-xs font-extrabold shadow-md shadow-indigo-100 transition-all cursor-pointer disabled:opacity-50"
                 >
-                  {paymentSubmitting ? "Submitting..." : "Submit Transaction Info"}
+                  {paymentSubmitting ? (
+                    <>
+                      <span className="animate-spin h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full shrink-0"></span>
+                      Submitting...
+                    </>
+                  ) : (
+                    "Submit Transaction Info"
+                  )}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+      <ThemePicker />
     </div>
   );
 }

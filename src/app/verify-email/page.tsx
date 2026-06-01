@@ -62,7 +62,7 @@ function VerifyEmailContent() {
           <div className="space-y-2">
             <h2 className="text-2xl font-black text-slate-900 tracking-tight">Email Verified!</h2>
             <p className="text-sm text-slate-650 font-light leading-relaxed">
-              Your student account has been successfully calibrated and approved. You can now access your PeerPilott Portal dashboard.
+              Your student account has been successfully calibrated and approved. You can now access your PeerPilot Portal dashboard.
             </p>
           </div>
           <div className="pt-2">

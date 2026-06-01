@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 
-const SECRET = process.env.JWT_SECRET || "super-secret-peerpilott-key-1234567890";
+const SECRET = process.env.JWT_SECRET || "super-secret-peerpilot-key-1234567890";
 
 async function getCryptoKey() {
   const enc = new TextEncoder();

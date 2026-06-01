@@ -62,7 +62,7 @@ export async function POST(
     // 1. Send verification email via SMTP Nodemailer to the Student
     await sendEmail({
       to: booking.student.email,
-      subject: "PeerPilott - Payment Verified Successfully!",
+      subject: "PeerPilot - Payment Verified Successfully!",
       html: `
         <div style="font-family: sans-serif; max-width: 550px; margin: 0 auto; padding: 25px; border: 1px solid #e2e8f0; border-radius: 16px;">
           <h2 style="color: #4f46e5; margin-top: 0; margin-bottom: 15px;">Payment Verified Successfully!</h2>
@@ -116,7 +116,7 @@ export async function POST(
     // 2. Send verification email via SMTP Nodemailer to the Mentor
     await sendEmail({
       to: booking.mentor.email,
-      subject: "PeerPilott - Student Payment Verified!",
+      subject: "PeerPilot - Student Payment Verified!",
       html: `
         <div style="font-family: sans-serif; max-width: 550px; margin: 0 auto; padding: 25px; border: 1px solid #e2e8f0; border-radius: 16px;">
           <h2 style="color: #4f46e5; margin-top: 0; margin-bottom: 15px;">Student Payment Verified</h2>

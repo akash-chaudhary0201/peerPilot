@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PeerPilott | 1:1 Mock Interviews & Mentorship Hub",
+  title: "PeerPilot | 1:1 Mock Interviews & Mentorship Hub",
   description: "Book 1:1 sessions, HR mock interviews, and system design discussions with top industry mentors Akash, Prashu, Sumit, and Rakshit.",
 };
 

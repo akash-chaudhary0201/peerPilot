@@ -44,6 +44,7 @@ export async function GET(request: Request) {
       timeSlot: b.timeSlot,
       status: b.status,
       notes: b.notes,
+      meetingLink: b.meetingLink,
       priceTier: b.priceTier,
       pricePaid: b.pricePaid,
       paymentDate: b.paymentDate,

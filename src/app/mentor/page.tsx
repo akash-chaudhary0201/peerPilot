@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { mentors } from "@/data/mentors";
 import { initialBookings, Booking, Feedback } from "@/data/bookings";
+import ThemePicker from "@/components/ThemePicker";
 import {
   LayoutDashboard,
   CalendarCheck,
@@ -110,8 +111,16 @@ export default function MentorPortal() {
   });
 
   const [studentProfiles, setStudentProfiles] = useState<Record<string, any>>({});
+  const [isLoadingDashboard, setIsLoadingDashboard] = useState(true);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [processingBookingId, setProcessingBookingId] = useState<string | null>(null);
 
-  const fetchMentorDashboardData = async (email: string) => {
+  const fetchMentorDashboardData = async (email: string, isInitial = false) => {
+    if (isInitial) {
+      setIsLoadingDashboard(true);
+    }
     try {
       const headers = { "x-user-email": email };
 
@@ -153,6 +162,8 @@ export default function MentorPortal() {
       }
     } catch (error) {
       console.error("Error loading mentor data:", error);
+    } finally {
+      setIsLoadingDashboard(false);
     }
   };
 
@@ -175,12 +186,31 @@ export default function MentorPortal() {
         return;
       }
       setSession(parsedSession);
-      fetchMentorDashboardData(parsedSession.email);
+      fetchMentorDashboardData(parsedSession.email, true);
     } catch (e) {
       router.push("/login");
       return;
     }
   }, [router]);
+
+  useEffect(() => {
+    if (bookings.length > 0) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const isFeedback = urlParams.get("feedback");
+      const bookingId = urlParams.get("bookingId");
+      if (isFeedback === "1" && bookingId) {
+        setSelectedBookingForFeedback(bookingId);
+        const bookingObj = bookings.find(b => b.id === bookingId);
+        if (bookingObj) {
+          if (bookingObj.sessionType === "DSA Mock Interview") handleApplyTemplate('dsa');
+          else if (bookingObj.sessionType === "System Design Mock") handleApplyTemplate('system');
+          else handleApplyTemplate('star');
+        }
+        setActiveTab("feedback");
+        window.history.replaceState({}, "", "/mentor");
+      }
+    }
+  }, [bookings]);
 
   const handleLogout = () => {
     localStorage.removeItem("user_session");
@@ -191,6 +221,7 @@ export default function MentorPortal() {
   // Booking Action: Approve
   const handleApproveBooking = async (id: string) => {
     if (!session) return;
+    setProcessingBookingId(id);
     try {
       const res = await fetch(`/api/mentor/bookings/${id}/approve`, {
         method: "POST",
@@ -207,12 +238,15 @@ export default function MentorPortal() {
       showToast("Booking Approved! Meet the student at the scheduled slot.");
     } catch (error) {
       console.error(error);
+    } finally {
+      setProcessingBookingId(null);
     }
   };
 
   // Booking Action: Reject
   const handleRejectBooking = async (id: string) => {
     if (!session) return;
+    setProcessingBookingId(id);
     try {
       const res = await fetch(`/api/mentor/bookings/${id}/reject`, {
         method: "POST",
@@ -229,6 +263,8 @@ export default function MentorPortal() {
       showToast("Booking request declined.");
     } catch (error) {
       console.error(error);
+    } finally {
+      setProcessingBookingId(null);
     }
   };
 
@@ -294,6 +330,7 @@ ${scoreSubMetric2 < 7 ? "- [ ] Prepare 3 STAR narratives focusing on core projec
     e.preventDefault();
     if (!selectedBookingForFeedback || !session) return;
 
+    setIsSubmittingFeedback(true);
     try {
       const res = await fetch(`/api/mentor/bookings/${selectedBookingForFeedback}/feedback`, {
         method: "POST",
@@ -312,6 +349,7 @@ ${scoreSubMetric2 < 7 ? "- [ ] Prepare 3 STAR narratives focusing on core projec
       if (!res.ok) {
         const data = await res.json();
         alert(data.error || "Feedback submission failed.");
+        setIsSubmittingFeedback(false);
         return;
       }
 
@@ -322,6 +360,8 @@ ${scoreSubMetric2 < 7 ? "- [ ] Prepare 3 STAR narratives focusing on core projec
       showToast("Session marked as Complete and feedback sent to Student Portal!");
     } catch (error) {
       console.error(error);
+    } finally {
+      setIsSubmittingFeedback(false);
     }
   };
 
@@ -330,6 +370,7 @@ ${scoreSubMetric2 < 7 ? "- [ ] Prepare 3 STAR narratives focusing on core projec
     e.preventDefault();
     if (!session) return;
 
+    setIsSavingProfile(true);
     try {
       const res = await fetch("/api/mentor/profile", {
         method: "PUT",
@@ -343,6 +384,7 @@ ${scoreSubMetric2 < 7 ? "- [ ] Prepare 3 STAR narratives focusing on core projec
       if (!res.ok) {
         const data = await res.json();
         alert(data.error || "Profile save failed.");
+        setIsSavingProfile(false);
         return;
       }
 
@@ -350,6 +392,8 @@ ${scoreSubMetric2 < 7 ? "- [ ] Prepare 3 STAR narratives focusing on core projec
       showToast("Mentor profile coordinates saved successfully!");
     } catch (error) {
       console.error(error);
+    } finally {
+      setIsSavingProfile(false);
     }
   };
 
@@ -412,8 +456,7 @@ ${scoreSubMetric2 < 7 ? "- [ ] Prepare 3 STAR narratives focusing on core projec
   };
 
   const handleLaunchCall = (booking: Booking) => {
-    setSimulatedCallBooking(booking);
-    setCallTimer(45 * 60); // 45 mins countdown
+    router.push(`/session/${booking.id}`);
   };
 
   const handleEndCall = () => {
@@ -423,6 +466,30 @@ ${scoreSubMetric2 < 7 ? "- [ ] Prepare 3 STAR narratives focusing on core projec
       setActiveTab("feedback");
       showToast("Call ended. Writing feedback report now.");
     }
+  };
+
+  const handleInitiateFeedback = (booking: Booking) => {
+    setSelectedBookingForFeedback(booking.id);
+    
+    // Reset/preset grade values
+    setScoreSubMetric1(7);
+    setScoreSubMetric2(7);
+    setScoreSubMetric3(7);
+    setDsaGrade(booking.sessionType === "DSA Mock Interview" ? "A" : "N/A");
+    setSystemDesignGrade(booking.sessionType === "System Design Mock" ? "A" : "N/A");
+    setCommunicationGrade("A");
+    
+    // Apply template
+    if (booking.sessionType === "DSA Mock Interview") {
+      handleApplyTemplate('dsa');
+    } else if (booking.sessionType === "System Design Mock") {
+      handleApplyTemplate('system');
+    } else {
+      handleApplyTemplate('star');
+    }
+    
+    setActiveTab("feedback");
+    showToast("Feedback form prepared. Fill scores and click Submit!");
   };
 
   // Fetch student profile details dynamically (real context)
@@ -512,6 +579,7 @@ ${scoreSubMetric2 < 7 ? "- [ ] Prepare 3 STAR narratives focusing on core projec
     e.preventDefault();
     if (!session) return;
 
+    setIsSavingSettings(true);
     try {
       const res = await fetch("/api/mentor/settings", {
         method: "PUT",
@@ -529,6 +597,7 @@ ${scoreSubMetric2 < 7 ? "- [ ] Prepare 3 STAR narratives focusing on core projec
       if (!res.ok) {
         const data = await res.json();
         alert(data.error || "Settings save failed.");
+        setIsSavingSettings(false);
         return;
       }
 
@@ -536,6 +605,8 @@ ${scoreSubMetric2 < 7 ? "- [ ] Prepare 3 STAR narratives focusing on core projec
       showToast("Availability and calendar schedule updated!");
     } catch (error) {
       console.error(error);
+    } finally {
+      setIsSavingSettings(false);
     }
   };
 
@@ -555,6 +626,15 @@ ${scoreSubMetric2 < 7 ? "- [ ] Prepare 3 STAR narratives focusing on core projec
 
   // Mock Earnings ledger
   const mockEarnings = completedSessions * 1500; // Rs 1500 per mock
+
+  if (!session || isLoadingDashboard) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center gap-4 font-sans">
+        <div className="h-12 w-12 border-4 border-indigo-550/20 border-t-indigo-650 rounded-full animate-spin"></div>
+        <p className="text-slate-400 text-xs font-semibold tracking-wider uppercase">Loading Mentor Dashboard...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
@@ -738,22 +818,30 @@ ${scoreSubMetric2 < 7 ? "- [ ] Prepare 3 STAR narratives focusing on core projec
                               <span className="text-xs font-bold text-slate-900 block">{req.studentName}</span>
                               <span className="text-[10px] text-slate-400 mt-0.5 block">{req.sessionType} • {req.date} at {req.timeSlot}</span>
                             </div>
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleApproveBooking(req.id)}
-                                className="p-1.5 bg-emerald-50 text-emerald-600 border border-emerald-100 hover:bg-emerald-100 rounded-xl transition-colors"
-                                title="Approve"
-                              >
-                                <CheckCircle className="h-4 w-4" />
-                              </button>
-                              <button
-                                onClick={() => handleRejectBooking(req.id)}
-                                className="p-1.5 bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-100 rounded-xl transition-colors"
-                                title="Reject"
-                              >
-                                <XCircle className="h-4 w-4" />
-                              </button>
-                            </div>
+                            {processingBookingId === req.id ? (
+                              <div className="p-1.5 flex items-center justify-center shrink-0">
+                                <span className="animate-spin h-4 w-4 border-2 border-indigo-655 border-t-transparent rounded-full"></span>
+                              </div>
+                            ) : (
+                              <div className="flex gap-2">
+                                <button
+                                  disabled={processingBookingId !== null}
+                                  onClick={() => handleApproveBooking(req.id)}
+                                  className="p-1.5 bg-emerald-50 text-emerald-600 border border-emerald-100 hover:bg-emerald-100 rounded-xl transition-colors disabled:opacity-50"
+                                  title="Approve"
+                                >
+                                  <CheckCircle className="h-4 w-4" />
+                                </button>
+                                <button
+                                  disabled={processingBookingId !== null}
+                                  onClick={() => handleRejectBooking(req.id)}
+                                  className="p-1.5 bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-100 rounded-xl transition-colors disabled:opacity-50"
+                                  title="Reject"
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                </button>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -779,7 +867,7 @@ ${scoreSubMetric2 < 7 ? "- [ ] Prepare 3 STAR narratives focusing on core projec
                               onClick={() => handleLaunchCall(app)}
                               className="inline-flex items-center gap-1 px-3 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 text-[10px] font-bold shadow-md shadow-indigo-100 transition-colors shrink-0"
                             >
-                              <Play className="h-3 w-3 fill-white" /> Launch Simulator
+                              <Video className="h-3 w-3 fill-white" /> Join Meet
                             </button>
                           </div>
                         ))}
@@ -1227,33 +1315,44 @@ ${scoreSubMetric2 < 7 ? "- [ ] Prepare 3 STAR narratives focusing on core projec
                           {/* Card Actions */}
                           <div className="mt-5 pt-3.5 border-t border-slate-100 flex justify-between items-center gap-4">
                             {booking.status === "Pending" ? (
-                              <>
-                                <button
-                                  onClick={() => handleRejectBooking(booking.id)}
-                                  className="text-[10px] font-bold text-slate-500 hover:text-rose-600 bg-slate-50 hover:bg-rose-50 border border-slate-200 hover:border-rose-100 px-3 py-2 rounded-lg transition-colors cursor-pointer"
-                                >
-                                  Decline Request
-                                </button>
-                                <button
-                                  onClick={() => handleApproveBooking(booking.id)}
-                                  className="text-[10px] font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg shadow-sm transition-colors cursor-pointer"
-                                >
-                                  Approve Session
-                                </button>
-                              </>
+                              processingBookingId === booking.id ? (
+                                <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400">
+                                  <span className="animate-spin h-3.5 w-3.5 border-2 border-indigo-650 border-t-transparent rounded-full shrink-0"></span>
+                                  Updating Session...
+                                </div>
+                              ) : (
+                                <>
+                                  <button
+                                    disabled={processingBookingId !== null}
+                                    onClick={() => handleRejectBooking(booking.id)}
+                                    className="text-[10px] font-bold text-slate-505 hover:text-rose-600 bg-slate-50 hover:bg-rose-50 border border-slate-200 hover:border-rose-100 px-3 py-2 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                                  >
+                                    Decline Request
+                                  </button>
+                                  <button
+                                    disabled={processingBookingId !== null}
+                                    onClick={() => handleApproveBooking(booking.id)}
+                                    className="text-[10px] font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg shadow-sm transition-colors cursor-pointer disabled:opacity-50"
+                                  >
+                                    Approve Session
+                                  </button>
+                                </>
+                              )
                             ) : booking.status === "Approved" ? (
-                              <>
-                                <span className="flex items-center gap-1.5 text-[9px] font-bold text-indigo-600 uppercase tracking-wide">
-                                  <span className="h-2 w-2 bg-indigo-600 rounded-full animate-ping shrink-0"></span>
-                                  Simulation Ready
-                                </span>
+                              <div className="flex gap-2">
                                 <button
                                   onClick={() => handleLaunchCall(booking)}
-                                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-755 text-white text-[10px] font-bold rounded-xl transition-all shadow-md shadow-indigo-100 cursor-pointer"
+                                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold rounded-xl transition-all shadow-md shadow-indigo-100 cursor-pointer"
                                 >
-                                  <Video className="h-3.5 w-3.5" /> Start Call Room
+                                  <Video className="h-3.5 w-3.5" /> Join Meet
                                 </button>
-                              </>
+                                <button
+                                  onClick={() => handleInitiateFeedback(booking)}
+                                  className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 text-[10px] font-bold rounded-xl transition-all cursor-pointer"
+                                >
+                                  Complete & Grade
+                                </button>
+                              </div>
                             ) : booking.status === "Completed" ? (
                               <>
                                 <span className="text-[10px] text-slate-400 font-medium">Feedback Submitted</span>
@@ -1588,10 +1687,19 @@ ${scoreSubMetric2 < 7 ? "- [ ] Prepare 3 STAR narratives focusing on core projec
 
                     <button
                       type="submit"
-                      disabled={!selectedBookingForFeedback}
+                      disabled={!selectedBookingForFeedback || isSubmittingFeedback}
                       className="w-full inline-flex items-center justify-center gap-2 px-6 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-2xl text-xs transition-all shadow-md cursor-pointer disabled:opacity-55 disabled:cursor-not-allowed"
                     >
-                      <Save className="h-4 w-4" /> Submit Report Card Evaluation
+                      {isSubmittingFeedback ? (
+                        <>
+                          <span className="animate-spin h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full shrink-0"></span>
+                          Submitting Evaluation...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-4 w-4" /> Submit Report Card Evaluation
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>
@@ -1967,9 +2075,19 @@ ${scoreSubMetric2 < 7 ? "- [ ] Prepare 3 STAR narratives focusing on core projec
 
                     <button
                       type="submit"
-                      className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition-colors"
+                      disabled={isSavingProfile}
+                      className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition-colors disabled:opacity-50"
                     >
-                      <Save className="h-4 w-4" /> Save Professional Credentials
+                      {isSavingProfile ? (
+                        <>
+                          <span className="animate-spin h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full shrink-0"></span>
+                          Saving Credentials...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-4 w-4" /> Save Professional Credentials
+                        </>
+                      )}
                     </button>
                   </form>
                 </div>
@@ -1988,7 +2106,7 @@ ${scoreSubMetric2 < 7 ? "- [ ] Prepare 3 STAR narratives focusing on core projec
                           <CheckCircle className="h-4 w-4" />
                         </div>
                         <div>
-                          <span className="text-xs font-bold text-slate-800 block">PeerPilott Contributor</span>
+                          <span className="text-xs font-bold text-slate-800 block">PeerPilot Contributor</span>
                           <span className="text-[9px] text-slate-400">Completed 100+ simulated mocks</span>
                         </div>
                       </div>
@@ -2284,9 +2402,19 @@ ${scoreSubMetric2 < 7 ? "- [ ] Prepare 3 STAR narratives focusing on core projec
                   </div>
                   <button
                     type="submit"
-                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-indigo-600 hover:bg-indigo-755 text-white font-extrabold rounded-2xl text-xs transition-all shadow-md shadow-indigo-550/20 cursor-pointer"
+                    disabled={isSavingSettings}
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-indigo-600 hover:bg-indigo-755 text-white font-extrabold rounded-2xl text-xs transition-all shadow-md shadow-indigo-550/20 cursor-pointer disabled:opacity-50"
                   >
-                    <Save className="h-4 w-4" /> Save Available Schedule
+                    {isSavingSettings ? (
+                      <>
+                        <span className="animate-spin h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full shrink-0"></span>
+                        Saving Schedule...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4" /> Save Available Schedule
+                      </>
+                    )}
                   </button>
                 </div>
               </form>
@@ -2362,6 +2490,7 @@ ${scoreSubMetric2 < 7 ? "- [ ] Prepare 3 STAR narratives focusing on core projec
           </div>
         </div>
       )}
+      <ThemePicker />
     </div>
   );
 }

@@ -48,7 +48,7 @@ export default function Navbar() {
                 <GraduationCap className="h-6 w-6" />
               </div>
               <span className="text-xl font-bold tracking-tight text-slate-900">
-                Peer<span className="text-indigo-600">Pilott</span>
+                Peer<span className="text-indigo-600">Pilot</span>
               </span>
             </Link>
           </div>

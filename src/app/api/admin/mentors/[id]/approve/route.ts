@@ -49,7 +49,7 @@ export async function POST(
     // Send confirmation email via SMTP Nodemailer
     await sendEmail({
       to: updated.email,
-      subject: "PeerPilott Mentor Profile Approved!",
+      subject: "PeerPilot Mentor Profile Approved!",
       html: `
         <div style="font-family: sans-serif; max-width: 550px; margin: 0 auto; padding: 25px; border: 1px solid #e2e8f0; border-radius: 16px;">
           <h2 style="color: #4f46e5; margin-top: 0; margin-bottom: 15px;">Congratulations, ${updated.name}!</h2>

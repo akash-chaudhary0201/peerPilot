@@ -6,6 +6,7 @@ import { mentors as defaultMentors, Mentor } from "@/data/mentors";
 import { initialBookings, Booking } from "@/data/bookings";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import ThemePicker from "@/components/ThemePicker";
 import {
   LayoutDashboard,
   Users,
@@ -695,6 +696,10 @@ export default function AdminPortal() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [pricingPlans, setPricingPlans] = useState<any[]>([]);
   const [adminsList, setAdminsList] = useState<any[]>([]);
+  const [isLoadingDashboard, setIsLoadingDashboard] = useState(true);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [processingMentorId, setProcessingMentorId] = useState<string | null>(null);
+  const [processingBookingId, setProcessingBookingId] = useState<string | null>(null);
 
   // Admin Management Modal States
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
@@ -772,7 +777,10 @@ export default function AdminPortal() {
   const [successToast, setSuccessToast] = useState("");
   const [toastType, setToastType] = useState<'success' | 'danger'>('success');
 
-  const fetchAdminDashboardData = async (email: string) => {
+  const fetchAdminDashboardData = async (email: string, isInitial = false) => {
+    if (isInitial) {
+      setIsLoadingDashboard(true);
+    }
     try {
       const headers = { "x-user-email": email };
 
@@ -830,6 +838,8 @@ export default function AdminPortal() {
       }
     } catch (error) {
       console.error("Error loading admin data:", error);
+    } finally {
+      setIsLoadingDashboard(false);
     }
   };
 
@@ -841,7 +851,7 @@ export default function AdminPortal() {
         const parsed = JSON.parse(session);
         if (parsed.role === "admin") {
           setIsAdminLoggedIn(true);
-          fetchAdminDashboardData(parsed.email);
+          fetchAdminDashboardData(parsed.email, true);
         }
       } catch (err) {}
     }
@@ -851,6 +861,7 @@ export default function AdminPortal() {
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError("");
+    setIsLoggingIn(true);
 
     try {
       const res = await fetch("/api/auth/login", {
@@ -862,11 +873,13 @@ export default function AdminPortal() {
       const data = await res.json();
       if (!res.ok) {
         setLoginError(data.error || "Invalid administrator credentials.");
+        setIsLoggingIn(false);
         return;
       }
 
       if (data.role !== "admin") {
         setLoginError("Unauthorized. Admin role required.");
+        setIsLoggingIn(false);
         return;
       }
 
@@ -877,11 +890,13 @@ export default function AdminPortal() {
       };
       localStorage.setItem("user_session", JSON.stringify(adminSession));
       setIsAdminLoggedIn(true);
-      fetchAdminDashboardData(data.email);
+      fetchAdminDashboardData(data.email, true);
       showToast("Access Granted. Welcome Administrator.", "success");
     } catch (err) {
       console.error(err);
       setLoginError("An unexpected error occurred.");
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -904,6 +919,7 @@ export default function AdminPortal() {
   const handleApproveMentor = async (mentor: Mentor) => {
     const sessionStr = localStorage.getItem("user_session");
     if (!sessionStr) return;
+    setProcessingMentorId(mentor.id);
     try {
       const session = JSON.parse(sessionStr);
       const res = await fetch(`/api/admin/mentors/${mentor.id}/approve`, {
@@ -914,6 +930,7 @@ export default function AdminPortal() {
       if (!res.ok) {
         const data = await res.json();
         alert(data.error || "Approval failed.");
+        setProcessingMentorId(null);
         return;
       }
 
@@ -921,6 +938,8 @@ export default function AdminPortal() {
       showToast(`Mentor "${mentor.name}" successfully approved and listed!`, "success");
     } catch (error) {
       console.error(error);
+    } finally {
+      setProcessingMentorId(null);
     }
   };
 
@@ -928,6 +947,7 @@ export default function AdminPortal() {
   const handleRejectMentor = async (mentorId: string, mentorName: string) => {
     const sessionStr = localStorage.getItem("user_session");
     if (!sessionStr) return;
+    setProcessingMentorId(mentorId);
     try {
       const session = JSON.parse(sessionStr);
       const res = await fetch(`/api/admin/mentors/${mentorId}/reject`, {
@@ -938,6 +958,7 @@ export default function AdminPortal() {
       if (!res.ok) {
         const data = await res.json();
         alert(data.error || "Rejection failed.");
+        setProcessingMentorId(null);
         return;
       }
 
@@ -945,12 +966,15 @@ export default function AdminPortal() {
       showToast(`Mentor "${mentorName}" request rejected.`, "danger");
     } catch (error) {
       console.error(error);
+    } finally {
+      setProcessingMentorId(null);
     }
   };
 
   const handleVerifyPayment = async (bookingId: string) => {
     const sessionStr = localStorage.getItem("user_session");
     if (!sessionStr) return;
+    setProcessingBookingId(bookingId);
     try {
       const session = JSON.parse(sessionStr);
       const res = await fetch(`/api/admin/bookings/${bookingId}/verify`, {
@@ -961,6 +985,7 @@ export default function AdminPortal() {
       if (!res.ok) {
         const data = await res.json();
         alert(data.error || "Verification failed.");
+        setProcessingBookingId(null);
         return;
       }
 
@@ -968,6 +993,8 @@ export default function AdminPortal() {
       showToast(`Payment verified successfully! Booking request sent to the mentor.`, "success");
     } catch (error) {
       console.error(error);
+    } finally {
+      setProcessingBookingId(null);
     }
   };
 
@@ -1333,6 +1360,15 @@ export default function AdminPortal() {
     .reduce((sum, b) => sum + (b.pricePaid || 0), 0);
   const adminShare = Math.round(totalRevenue * (parseInt(configCommission) / 100));
 
+  if (isAdminLoggedIn && isLoadingDashboard) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center gap-4 font-sans">
+        <div className="h-12 w-12 border-4 border-indigo-500/20 border-t-indigo-600 rounded-full animate-spin"></div>
+        <p className="text-slate-400 text-xs font-semibold tracking-wider uppercase">Syncing Admin Control Panel...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
 
@@ -1404,10 +1440,20 @@ export default function AdminPortal() {
                 <div className="pt-2">
                   <button
                     type="submit"
-                    className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-2xl hover:shadow-lg transition-all text-xs cursor-pointer shadow shadow-indigo-100"
+                    disabled={isLoggingIn}
+                    className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-2xl hover:shadow-lg transition-all text-xs cursor-pointer shadow shadow-indigo-100 disabled:opacity-50"
                   >
-                    Authorize Console Access
-                    <Lock className="h-4 w-4" />
+                    {isLoggingIn ? (
+                      <>
+                        <span className="animate-spin h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full shrink-0"></span>
+                        Authorizing...
+                      </>
+                    ) : (
+                      <>
+                        Authorize Console Access
+                        <Lock className="h-4 w-4" />
+                      </>
+                    )}
                   </button>
                 </div>
               </form>
@@ -1436,7 +1482,7 @@ export default function AdminPortal() {
                     <Shield className="h-5 w-5" />
                   </div>
                   <span className="text-lg font-bold text-slate-900">
-                    PeerPilott <span className="text-indigo-600 font-extrabold">Admin</span>
+                    PeerPilot <span className="text-indigo-600 font-extrabold">Admin</span>
                   </span>
                 </div>
 
@@ -1565,7 +1611,7 @@ export default function AdminPortal() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-bold text-slate-900 truncate">Super Admin</p>
-                    <p className="text-[10px] text-slate-400 truncate">admin@peerpilott.com</p>
+                    <p className="text-[10px] text-slate-400 truncate">admin@peerpilot.com</p>
                   </div>
                 </div>
               </div>
@@ -1693,12 +1739,20 @@ export default function AdminPortal() {
                                   </div>
                                 </div>
                                 
-                                <button
-                                  onClick={() => handleVerifyPayment(booking.id)}
-                                  className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-extrabold shadow shadow-emerald-100 transition-all cursor-pointer shrink-0"
-                                >
-                                  Verify Payment
-                                </button>
+                                {processingBookingId === booking.id ? (
+                                   <div className="flex items-center gap-1.5 px-3.5 py-1.5 text-[10px] font-bold text-slate-400">
+                                     <span className="animate-spin h-3.5 w-3.5 border-2 border-indigo-600 border-t-transparent rounded-full shrink-0"></span>
+                                     Verifying...
+                                   </div>
+                                 ) : (
+                                   <button
+                                     disabled={processingBookingId !== null}
+                                     onClick={() => handleVerifyPayment(booking.id)}
+                                     className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-extrabold shadow shadow-emerald-100 transition-all cursor-pointer shrink-0 disabled:opacity-50"
+                                   >
+                                     Verify Payment
+                                   </button>
+                                 )}
                               </div>
                             ))}
                           </div>
@@ -2055,20 +2109,29 @@ export default function AdminPortal() {
                               >
                                 Inspect Full Application
                               </button>
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={() => handleApproveMentor(mentor)}
-                                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-extrabold text-[10px] transition-colors cursor-pointer"
-                                >
-                                  <Check className="h-3.5 w-3.5" /> Approve
-                                </button>
-                                <button
-                                  onClick={() => handleRejectMentor(mentor.id, mentor.name)}
-                                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-100 rounded-xl font-bold text-[10px] transition-colors cursor-pointer"
-                                >
-                                  <X className="h-3.5 w-3.5" /> Decline
-                                </button>
-                              </div>
+                              {processingMentorId === mentor.id ? (
+                                <div className="w-full flex items-center justify-center gap-1.5 py-2 text-[10px] font-bold text-slate-400 bg-slate-50 border border-slate-100 rounded-xl">
+                                  <span className="animate-spin h-3.5 w-3.5 border-2 border-indigo-600 border-t-transparent rounded-full shrink-0"></span>
+                                  Processing Onboarding...
+                                </div>
+                              ) : (
+                                <div className="flex gap-2">
+                                  <button
+                                    disabled={processingMentorId !== null}
+                                    onClick={() => handleApproveMentor(mentor)}
+                                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-extrabold text-[10px] transition-colors cursor-pointer disabled:opacity-50"
+                                  >
+                                    <Check className="h-3.5 w-3.5" /> Approve
+                                  </button>
+                                  <button
+                                    disabled={processingMentorId !== null}
+                                    onClick={() => handleRejectMentor(mentor.id, mentor.name)}
+                                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-100 rounded-xl font-bold text-[10px] transition-colors cursor-pointer disabled:opacity-50"
+                                  >
+                                    <X className="h-3.5 w-3.5" /> Decline
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -2329,18 +2392,24 @@ export default function AdminPortal() {
                                 </td>
                                 <td className="px-6 py-4 text-center">
                                   {!booking.paymentVerified && booking.transactionId ? (
-                                    <button
-                                      disabled={currentAdminProfile && !currentAdminProfile.canVerifyPayments}
-                                      onClick={() => handleVerifyPayment(booking.id)}
-                                      className={`px-2.5 py-1 rounded-lg text-[9px] font-extrabold transition-all ${
-                                        currentAdminProfile && !currentAdminProfile.canVerifyPayments
-                                          ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
-                                          : "bg-emerald-600 hover:bg-emerald-700 text-white shadow shadow-emerald-100 cursor-pointer"
-                                      }`}
-                                      title={currentAdminProfile && !currentAdminProfile.canVerifyPayments ? "No permission to verify payments" : ""}
-                                    >
-                                      Verify Payment
-                                    </button>
+                                    processingBookingId === booking.id ? (
+                                      <div className="flex items-center justify-center">
+                                        <span className="animate-spin h-3.5 w-3.5 border-2 border-indigo-650 border-t-transparent rounded-full"></span>
+                                      </div>
+                                    ) : (
+                                      <button
+                                        disabled={(currentAdminProfile && !currentAdminProfile.canVerifyPayments) || processingBookingId !== null}
+                                        onClick={() => handleVerifyPayment(booking.id)}
+                                        className={`px-2.5 py-1 rounded-lg text-[9px] font-extrabold transition-all ${
+                                          currentAdminProfile && !currentAdminProfile.canVerifyPayments
+                                            ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
+                                            : "bg-emerald-600 hover:bg-emerald-700 text-white shadow shadow-emerald-100 cursor-pointer"
+                                        }`}
+                                        title={currentAdminProfile && !currentAdminProfile.canVerifyPayments ? "No permission to verify payments" : ""}
+                                      >
+                                        Verify Payment
+                                      </button>
+                                    )
                                   ) : (
                                     <span className="text-[9px] text-slate-400">-</span>
                                   )}
@@ -3141,9 +3210,16 @@ export default function AdminPortal() {
                 <button
                   type="submit"
                   disabled={isSubmittingPlan}
-                  className="px-5 py-2 bg-indigo-650 hover:bg-indigo-750 text-white font-extrabold text-xs rounded-xl shadow shadow-indigo-100 cursor-pointer disabled:opacity-50 transition-colors"
+                  className="px-5 py-2 bg-indigo-655 hover:bg-indigo-755 text-white font-extrabold text-xs rounded-xl shadow shadow-indigo-100 cursor-pointer disabled:opacity-50 transition-colors inline-flex items-center gap-1.5 justify-center"
                 >
-                  {isSubmittingPlan ? "Saving Plan..." : "Save Pricing Plan"}
+                  {isSubmittingPlan ? (
+                    <>
+                      <span className="animate-spin h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full shrink-0"></span>
+                      Saving Plan...
+                    </>
+                  ) : (
+                    "Save Pricing Plan"
+                  )}
                 </button>
               </div>
             </form>
@@ -3333,15 +3409,23 @@ export default function AdminPortal() {
                 <button
                   type="submit"
                   disabled={isSubmittingAdmin}
-                  className="px-5 py-2 bg-indigo-655 hover:bg-indigo-755 text-white font-extrabold text-xs rounded-xl shadow shadow-indigo-100 cursor-pointer disabled:opacity-50 transition-colors"
+                  className="px-5 py-2 bg-indigo-655 hover:bg-indigo-755 text-white font-extrabold text-xs rounded-xl shadow shadow-indigo-100 cursor-pointer disabled:opacity-50 transition-colors inline-flex items-center gap-1.5 justify-center"
                 >
-                  {isSubmittingAdmin ? "Saving Admin..." : "Save Administrator"}
+                  {isSubmittingAdmin ? (
+                    <>
+                      <span className="animate-spin h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full shrink-0"></span>
+                      Saving Admin...
+                    </>
+                  ) : (
+                    "Save Administrator"
+                  )}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+      <ThemePicker />
     </div>
   );
 }

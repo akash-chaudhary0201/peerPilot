@@ -82,12 +82,12 @@ export async function POST(request: Request) {
     // Send verification email via SMTP Nodemailer with 6-digit OTP code
     await sendEmail({
       to: cleanEmail,
-      subject: "Verify Your PeerPilott Account",
+      subject: "Verify Your PeerPilot Account",
       html: `
         <div style="font-family: sans-serif; max-width: 550px; margin: 0 auto; padding: 25px; border: 1px solid #e2e8f0; border-radius: 16px;">
-          <h2 style="color: #4f46e5; margin-top: 0; margin-bottom: 15px;">Welcome to PeerPilott, ${name}!</h2>
+          <h2 style="color: #4f46e5; margin-top: 0; margin-bottom: 15px;">Welcome to PeerPilot, ${name}!</h2>
           <p style="color: #334155; font-size: 14px; line-height: 1.5; margin-bottom: 20px;">
-            Thank you for creating an account on PeerPilott. To verify your email address and activate your workspace portal, please enter the following 6-digit OTP code on the verification screen:
+            Thank you for creating an account on PeerPilot. To verify your email address and activate your workspace portal, please enter the following 6-digit OTP code on the verification screen:
           </p>
           <div style="font-size: 24px; font-weight: bold; color: #4f46e5; letter-spacing: 4px; text-align: center; margin: 25px 0; background-color: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0;">
             ${token}

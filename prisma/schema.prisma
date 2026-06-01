@@ -94,6 +94,7 @@ model Booking {
   timeSlot        String    // e.g. "2:00 PM"
   status          String    @default("Pending") // "Pending" | "Approved" | "Completed" | "Rejected"
   notes           String?
+  meetingLink     String?   // Google Meet URL
   priceTier       String?   // e.g. "Starter", "Premium", "Career Accelerator"
   pricePaid       Int?      // e.g. 299, 499, 999
   paymentDate     String?   

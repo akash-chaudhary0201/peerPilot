@@ -43,6 +43,7 @@ export async function GET(request: Request) {
       timeSlot: b.timeSlot,
       status: b.status,
       notes: b.notes,
+      meetingLink: b.meetingLink,
       feedback: b.feedback
         ? {
             dsaScore: b.feedback.dsaScore,

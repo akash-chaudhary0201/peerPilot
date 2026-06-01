@@ -18,13 +18,15 @@ import {
   Users,
   Coins,
   ShieldCheck,
-  CheckCircle2
+  CheckCircle2,
+  ChevronDown
 } from "lucide-react";
 
 export default function PricingPage() {
   const [budgetLimit, setBudgetLimit] = useState<number>(1000);
   const [plans, setPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   useEffect(() => {
     fetch("/api/pricing")
@@ -63,6 +65,14 @@ export default function PricingPage() {
     {
       q: "How does the action plan PDF work?",
       a: "After a Premium or Career Accelerator session, your mentor drafts a comprehensive evaluation card detailing code optimizations, architecture advice, soft skills grade scores, and a structured checklist. This is exported as a personal roadmap PDF on your dashboard."
+    },
+    {
+      q: "What happens if the mentor needs to reschedule the mock interview?",
+      a: "If a mentor has an urgent schedule conflict, they will propose alternative times. If none of the proposed times fit your calendar, you can select another mentor or request an immediate refund."
+    },
+    {
+      q: "Can I schedule recurring sessions under the Career Accelerator plan?",
+      a: "Yes, the Career Accelerator program is structured to allow multiple milestone checks. You can coordinate directly with your mentor to space out evaluations across the month as you hit key preparation stages."
     }
   ];
 
@@ -253,24 +263,45 @@ export default function PricingPage() {
         </div>
 
         {/* FREQUENTLY ASKED QUESTIONS SECTION */}
-        <div className="mt-24 space-y-10 max-w-4xl mx-auto">
-          <div className="text-center space-y-2">
-            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Frequently Asked Questions</h2>
-            <p className="text-slate-500 text-xs font-light">Clear answers to common questions about mock interview packages and pricing plans.</p>
+        <div className="mt-24 space-y-8 max-w-3xl mx-auto">
+          <div className="text-center space-y-2 mb-10">
+            <h2 className="text-3xl font-black text-slate-900 tracking-tight">Frequently Asked Questions</h2>
+            <p className="text-slate-500 text-xs sm:text-sm font-light">Clear answers to common questions about mock interview packages and pricing plans.</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
-            {faqs.map((faq, idx) => (
-              <div key={idx} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-2 flex flex-col justify-start">
-                <h4 className="text-xs font-bold text-slate-900 flex items-center gap-2">
-                  <HelpCircle className="h-4.5 w-4.5 text-indigo-500 shrink-0" />
-                  {faq.q}
-                </h4>
-                <p className="text-[11px] text-slate-500 leading-relaxed font-light pl-6">
-                  {faq.a}
-                </p>
-              </div>
-            ))}
+          <div className="space-y-4 text-left">
+            {faqs.map((faq, idx) => {
+              const isOpen = openIndex === idx;
+              return (
+                <div 
+                  key={idx} 
+                  className={`bg-white rounded-2xl border transition-all duration-300 ${
+                    isOpen ? "border-indigo-200 shadow-lg shadow-indigo-50/50" : "border-slate-100 hover:border-slate-200 shadow-sm"
+                  }`}
+                >
+                  <button
+                    onClick={() => setOpenIndex(isOpen ? null : idx)}
+                    className="w-full flex items-center justify-between p-5 text-left font-sans cursor-pointer focus:outline-none"
+                  >
+                    <div className="flex items-center gap-3">
+                      <HelpCircle className={`h-5 w-5 shrink-0 transition-colors duration-300 ${isOpen ? "text-indigo-600" : "text-slate-400"}`} />
+                      <span className="text-sm font-bold text-slate-800 tracking-tight">
+                        {faq.q}
+                      </span>
+                    </div>
+                    <ChevronDown className={`h-4.5 w-4.5 text-slate-400 shrink-0 transition-transform duration-300 ${isOpen ? "transform rotate-180 text-indigo-650" : ""}`} />
+                  </button>
+                  
+                  <div className={`grid transition-all duration-300 ease-in-out ${isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
+                    <div className="overflow-hidden">
+                      <p className="text-xs sm:text-sm text-slate-500 leading-relaxed font-light pl-13 pr-5 pb-5">
+                        {faq.a}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
